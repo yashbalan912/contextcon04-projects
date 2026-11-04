@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ContextCon 04: The Projects</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Stack+Sans+Headline:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#F7F7F4;--ink:#1C1C1A;--mute:#65645E;--line:#DEDDD6;--card:#FFFFFF;--accent:#B8520F;--accent-ink:#FFFFFF;--tile:#111110}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.45 Inter,system-ui,sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:28px 16px 56px}
+.brand{height:26px;max-width:100%;object-fit:contain;object-position:left;display:block;margin-bottom:26px}
+h1{font:700 clamp(34px,6vw,56px)/1.05 'Stack Sans Headline',Inter,sans-serif;margin:0 0 8px;letter-spacing:-.01em}
+.lede{margin:0 0 24px;color:var(--mute);font-size:17px;max-width:62ch}
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.search{flex:1 1 240px;min-width:0;height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:0 14px;font:inherit;color:inherit}
+.search:focus,.chip:focus-visible,.btn:focus-visible,.play:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+.chip{flex:none;height:36px;padding:0 14px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--ink);font:500 14px Inter,sans-serif;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.count{color:var(--mute);font-size:14px;margin:4px 0 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
+@media(max-width:380px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.video{position:relative;aspect-ratio:16/9;background:var(--tile)}
+.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.play{position:absolute;inset:0;width:100%;height:100%;border:0;background:none;color:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font:500 14px Inter,sans-serif;text-decoration:none}
+.play svg{width:54px;height:54px}
+.body{padding:16px;display:flex;flex-direction:column;gap:6px;flex:1}
+.theme{color:var(--accent);font:600 13px Inter,sans-serif}
+h2{font:700 21px/1.2 'Stack Sans Headline',Inter,sans-serif;margin:0;overflow-wrap:anywhere}
+.line{margin:0;color:var(--ink);font-size:15px;overflow-wrap:anywhere}
+.actions{display:flex;gap:10px;margin-top:auto;padding-top:12px}
+.btn{height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:0 18px;font:600 15px Inter,sans-serif;text-decoration:none}
+.vote{flex:1;background:var(--accent);color:var(--accent-ink)}
+.repo{border:1px solid var(--line);color:var(--ink);background:var(--card)}
+.empty{padding:56px 16px;text-align:center;color:var(--mute)}
+.foot{margin-top:40px;color:var(--mute);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <img class="brand" src="brand.png" alt="Crustdata, Y Combinator and Techkriti">
+  <h1>Watch every team.</h1>
+  <p class="lede">Two-minute demos from the night at IIT Kanpur. Press play on any project, then vote for the one you would pay for.</p>
+  <div class="tools"><input class="search" id="q" type="search" placeholder="Find a team" aria-label="Find a team"></div>
+  <div class="chips" id="chips"></div>
+  <p class="count" id="count" aria-live="polite"></p>
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="empty" hidden></p>
+  <p class="foot">ContextCon 04: IIT Kanpur. Teams appear in a different order for each person, so no team is always first.</p>
+</div>
+<script>
+const FORM = 'https://docs.google.com/forms/d/e/1FAIpQLSfnk6s_xlb5yem92Zgt_yXDBD1EHHwT0akerv6dbPBEfM1ivQ/viewform';
+const PLAY = '<svg viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="26" fill="rgba(255,255,255,.14)" stroke="#fff" stroke-width="1.5"/><path d="M22 17l15 10-15 10z" fill="#fff"/></svg>';
+// Team text comes from a public form, so it only ever reaches the page as text, and links must be plain http(s).
+const safeUrl = u => { try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (e) { return ''; } };
+function embedUrl(u) {
+  let x; try { x = new URL(u); } catch (e) { return ''; }
+  const host = x.hostname.replace(/^www\./, ''), parts = x.pathname.split('/').filter(Boolean);
+  if (host === 'loom.com' && parts[0] === 'share' && /^[a-z0-9]+$/i.test(parts[1] || '')) return 'https://www.loom.com/embed/' + parts[1];
+  let id = '';
+  if (host === 'youtu.be') id = parts[0] || '';
+  else if (host === 'youtube.com' || host === 'm.youtube.com') id = x.searchParams.get('v') || (['shorts', 'live', 'embed'].includes(parts[0]) ? parts[1] : '') || '';
+  return /^[\w-]{6,20}$/.test(id) ? 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0' : '';
+}
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+function card(t) {
+  const c = el('article', 'card'), v = el('div', 'video'), src = embedUrl(t.video), link = safeUrl(t.video);
+  if (src) {
+    const b = el('button', 'play'); b.type = 'button'; b.setAttribute('aria-label', 'Play the demo from ' + t.team); b.innerHTML = PLAY + '<span>Play the demo</span>';
+    b.onclick = () => { const f = document.createElement('iframe'); f.src = src; f.title = 'Demo from ' + t.team; f.allow = 'autoplay; fullscreen; picture-in-picture'; f.allowFullscreen = true; v.replaceChildren(f); };
+    v.append(b);
+  } else if (link) {
+    const a = el('a', 'play'); a.href = link; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.innerHTML = PLAY + '<span>Open the demo</span>'; v.append(a);
+  } else { const s = el('div', 'play'); s.textContent = 'No video link'; v.append(s); }
+  const b = el('div', 'body');
+  if (t.theme) b.append(el('div', 'theme', t.theme));
+  b.append(el('h2', '', t.team), el('p', 'line', t.line));
+  const act = el('div', 'actions'), vote = el('a', 'btn vote', 'Vote');
+  vote.href = FORM + '?usp=pp_url&entry.1330974400=' + encodeURIComponent(t.team); vote.target = '_blank'; vote.rel = 'noopener'; vote.setAttribute('aria-label', 'Vote for ' + t.team); act.append(vote);
+  const r = safeUrl(t.repo);
+  if (r) { const a = el('a', 'btn repo', 'Repo'); a.href = r; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.setAttribute('aria-label', 'Open the repo of ' + t.team); act.append(a); }
+  b.append(act); c.append(v, b); return c;
+}
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let TEAMS = [], theme = '';
+function render() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const list = TEAMS.filter(t => (!theme || t.theme === theme) && (!q || (t.team + ' ' + t.line).toLowerCase().includes(q)));
+  document.getElementById('grid').replaceChildren(...list.map(card));
+  document.getElementById('count').textContent = TEAMS.length ? list.length + (list.length === 1 ? ' project' : ' projects') : '';
+  const e = document.getElementById('empty'); e.hidden = list.length > 0;
+  e.textContent = TEAMS.length ? 'No team matches that search.' : 'The videos open just after code freeze at 7:00 AM. Please come back then.';
+}
+function chips() {
+  const box = document.getElementById('chips'), themes = [...new Set(TEAMS.map(t => t.theme).filter(Boolean))].sort();
+  box.replaceChildren(...['', ...themes].map(name => { const b = el('button', 'chip', name || 'All themes'); b.type = 'button'; b.setAttribute('aria-pressed', String(name === theme)); b.onclick = () => { theme = name; chips(); render(); }; return b; }));
+}
+fetch('data.json?m=' + Math.floor(Date.now() / 60000)).then(r => r.ok ? r.json() : []).catch(() => []).then(d => { TEAMS = shuffle(Array.isArray(d) ? d : []); chips(); render(); });
+document.getElementById('q').addEventListener('input', render);
+</script>
+</body>
+</html>
